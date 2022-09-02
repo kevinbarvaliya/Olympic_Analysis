@@ -1,0 +1,168 @@
+---
+title: "Olympic Games from 1896 to 2016"
+output: html_notebook
+---
+
+#Reqired Libraries
+```{r}
+install.packages("gganimate")
+install.packages("tidyverse")
+install.packages("rlang")
+install.packages("scales")
+```
+
+
+```{r}
+library("gganimate")
+library("data.table")
+library("knitr")
+library("gridExtra")
+library("tidyverse")
+library("plotly")
+
+```
+
+#Read Athlete Event Data
+```{r}
+event <- read.csv("athlete_events.csv")
+head(event)
+```
+
+#Read Regios Data
+```{r}
+region <- read.csv("nocRegions.csv")
+head(region)
+```
+
+
+#Cheking Data type of columns
+```{r}
+sapply(event, class)
+
+```
+
+
+```{r}
+numbers <- event %>%
+  group_by(Year, Season) %>%
+  summarize(Nations = length(unique(NOC)), Athletes = length(unique(ID)), Events = length(unique(Event))
+  )
+numbers
+```
+#How many countries were participated in Olympic Games from 1896 to 2016
+
+```{r}
+ggplot(numbers, aes(x=Year, y=Nations, group = interaction(Season),color=Season)) + 
+  geom_line()+
+  geom_point()+
+  scale_color_manual(values=c("chocolate","deepskyblue4"))+
+  labs(title = "Prticipated Countries",
+       subtitle = "Olympic Games from 1896 to 2016")
+
+```
+#How many Athletes were participated in Olympic Games from 1896 to 2016
+
+```{r}
+ggplot(numbers, aes(x=Year, y=Athletes, group = interaction(Season),color=Season)) + 
+  geom_line()+
+  geom_point()+
+  scale_color_manual(values=c("chocolate","deepskyblue4"))+
+  labs(title = "Prticipated Athletes",
+       subtitle = "Olympic Games from 1896 to 2016")
+
+```
+#Events in Olympic Games from 1896 to 2016
+
+```{r}
+ggplot(numbers, aes(x=Year, y=Events, group = interaction(Season),color=Season)) + 
+  geom_line()+
+  geom_point()+
+  scale_color_manual(values=c("chocolate","deepskyblue4"))+
+  labs(title = "Events",
+       subtitle = "Olympic Games from 1896 to 2016")
+
+```
+
+#Total number of Medals won by each Country
+
+```{r}
+
+medals <- full_join(medals, region, by = "NOC")
+
+medals <- medals %>% filter(!is.na(Medal)) %>%
+  group_by(region,Medal, Event, Games) %>%
+  summarise(ismedal = 1)
+
+medals
+
+medals <- medals %>% 
+  group_by(region, Medal) %>%
+  summarise(Count = sum(ismedal))
+
+CountryMedal <- medals %>% 
+  group_by(region) %>%
+  summarise(Total_Medals = sum(Count))
+
+medals <- full_join(medals, CountryMedal, by = "region")
+
+
+medals <- medals %>% select(region, Medal, Count,Total_Medals) %>%
+  arrange(-Total_Medals)
+  
+
+medals <- head(medals,90)
+medals
+```
+
+
+```{r}
+ggplot(data = medals, aes(reorder(region,Count),Count, fill = Medal))+
+  geom_col() + 
+  coord_flip() +
+  scale_fill_manual(values=c("sienna","gold3","gray64")) + 
+  labs(title = "Top 30 Countries with highest medal won in the history",x = "Countryies", y = "Total Medals")
+
+```
+
+# Number of men and women over time
+
+```{r}
+CountGender <- event %>%
+  group_by(Year,Sex) %>%
+  summarise(Athletes = length(unique(Name)))
+
+CountGender
+
+```
+
+# Replacing values in SEx Column
+
+```{r}
+
+CountGender$Sex[CountGender$Sex == "F"] <- "Female"
+CountGender$Sex[CountGender$Sex == "M"] <- "Male"
+CountGender
+```
+
+```{r}
+ggplot(CountGender, aes(x = Year, y = Athletes, group = Sex, color = Sex)) + 
+  geom_line() + 
+  geom_point(size=3) + 
+  labs(title = "Number of men and women over time")
+
+```
+```{r}
+earth <- map_data("world")
+
+earth <- left_join(earth, medals, by="region")
+```
+
+```{r chloropleth_2016, fig.width=10, fig.height=6}
+ggplot(earth, aes(x = long, y = lat, group = group)) +
+  geom_polygon(aes(fill = Total_Medals, label= region)) +
+  labs(x = "", y = "", 
+       title="Number of medals won by each countr") 
+
+```
+
+
